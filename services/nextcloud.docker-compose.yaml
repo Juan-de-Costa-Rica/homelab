@@ -1,0 +1,265 @@
+# =============================================================================
+# NEXTCLOUD - PERSONAL CLOUD STORAGE & COLLABORATION
+# =============================================================================
+# Full-featured personal cloud with file sync, sharing, office apps
+# Configured for SELECTIVE ENCRYPTION & SHARED MEDIA VOLUMES
+# Integrated with TSDProxy for secure Tailscale access
+# =============================================================================
+
+services:
+  # ==========================================================================
+  # MariaDB Database Container
+  # ==========================================================================
+  # Optimized for homelab single-user setup with performance tuning
+  nextcloud-db:
+    image: mariadb:lts
+    container_name: nextcloud-db
+    restart: unless-stopped
+    
+    # DATABASE OPTIMIZATION FLAGS for homelab performance:
+    # - READ-COMMITTED: Prevents Nextcloud deadlocks (officially recommended)
+    # - Binary logging: Enables point-in-time recovery
+    # - ROW format: More reliable than STATEMENT for Nextcloud operations
+    command: --transaction-isolation=READ-COMMITTED --log-bin=binlog --binlog-format=ROW
+    
+    volumes:
+      # Database files - critical for data consistency
+      - homelab_services_nextcloud_db_data:/var/lib/mysql
+    
+    environment:
+      # Database credentials - sourced from .env file
+      MYSQL_ROOT_PASSWORD: ${NEXTCLOUD_MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: nextcloud
+      MYSQL_USER: nextcloud
+      MYSQL_PASSWORD: ${NEXTCLOUD_MYSQL_PASSWORD}
+      
+      # PERFORMANCE TUNING for 11GB RAM homelab system:
+      
+      # Auto-upgrade tables to latest MariaDB format
+      MARIADB_AUTO_UPGRADE: 1
+      
+      # Buffer pool = working memory for data and indexes
+      # 512M for your 11GB system (can handle ~1GB active data)
+      MARIADB_INNODB_BUFFER_POOL_SIZE: 512M
+      
+      # Transaction log size (balanced for homelab)
+      MARIADB_INNODB_LOG_FILE_SIZE: 128M
+      
+      # Skip backup during upgrades (save disk space)
+      MARIADB_DISABLE_UPGRADE_BACKUP: 1
+    
+    networks:
+      - homelab_network
+    
+    # # Health check for proper startup sequencing
+    # healthcheck:
+    #   test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+    #   timeout: 20s
+    #   retries: 10
+
+  # ==========================================================================
+  # Redis Cache Container
+  # ==========================================================================
+  # Provides file locking and session caching for Nextcloud
+  nextcloud-redis:
+    image: redis:alpine
+    container_name: nextcloud-redis
+    restart: unless-stopped
+    
+    # Redis persistence optimized for homelab:
+    # - Save every 60 seconds if 1+ keys changed (less aggressive than default)
+    # - Warning level logging (reduce log spam)
+    command: redis-server --save 60 1 --loglevel warning
+    
+    volumes:
+      # Redis persistence data (small but speeds up restarts)
+      - homelab_services_nextcloud_redis_data:/data
+    
+    networks:
+      - homelab_network
+
+  # ==========================================================================
+  # Nextcloud Application Container
+  # ==========================================================================
+  # Main Nextcloud application with TSDProxy integration
+  nextcloud-app:
+    image: nextcloud:stable
+    container_name: nextcloud-app
+    restart: unless-stopped
+    
+    # NO PORT MAPPING - TSDProxy handles all traffic routing
+    # But we need to expose port 80 internally for TSDProxy to detect
+# In nextcloud.docker-compose.yaml, replace the expose section with:
+    ports:
+      - "8081:80"  # Only accessible from localhost
+    
+    
+    depends_on:
+    - nextcloud-db
+    - nextcloud-redis
+      # nextcloud-db:
+      #   condition: service_healthy
+      # nextcloud-redis:
+      #   condition: service_started
+    
+    # VOLUME STRATEGY - Granular separation for better backup/restore:
+    volumes:
+      # Main Nextcloud installation (web app, themes, etc.)
+      - homelab_services_nextcloud_app_data:/var/www/html
+      
+      # Configuration files (config.php, etc.) - most critical to backup
+      - homelab_services_nextcloud_config:/var/www/html/config
+      
+      # Custom apps from app store - can be re-downloaded if needed
+      - homelab_services_nextcloud_custom_apps:/var/www/html/custom_apps
+      
+      # User data files - largest volume, different backup strategy
+      - homelab_services_nextcloud_user_data:/var/www/html/data
+      
+      # SHARED MEDIA VOLUMES - THE HOMELAB MAGIC!
+      # These will be shared with Audiobookshelf, Calibre-Web, etc.
+      # Files uploaded here appear in Nextcloud AND other services
+      
+      # Audiobooks shared with Audiobookshelf
+      - homelab_shared_audiobooks:/var/www/html/data/__media__/audiobooks
+      
+      # Books shared with Calibre-Web and Audiobookshelf
+      - homelab_shared_books:/var/www/html/data/__media__/books
+      
+      # General media shared with media servers
+      - homelab_shared_media:/var/www/html/data/__media__/files
+    
+    environment:
+      # DATABASE CONNECTION using Docker service names
+      MYSQL_HOST: nextcloud-db
+      MYSQL_DATABASE: nextcloud
+      MYSQL_USER: nextcloud
+      MYSQL_PASSWORD: ${NEXTCLOUD_MYSQL_PASSWORD}
+      
+      # REDIS CONNECTION
+      REDIS_HOST: nextcloud-redis
+      
+      # INITIAL ADMIN SETUP (only used on first run)
+      NEXTCLOUD_ADMIN_USER: ${NEXTCLOUD_ADMIN_USER}
+      NEXTCLOUD_ADMIN_PASSWORD: ${NEXTCLOUD_ADMIN_PASSWORD}
+      
+      # TSDPROXY/TAILSCALE INTEGRATION:
+      # Key difference from your VPS - no NPM, using Tailscale domains
+      
+      # Trusted domains - your Tailscale domain for Nextcloud
+      NEXTCLOUD_TRUSTED_DOMAINS: ${NEXTCLOUD_TRUSTED_DOMAIN}
+      
+      # Force HTTPS since TSDProxy provides SSL certificates
+      OVERWRITEPROTOCOL: https
+      
+      # Hostname for URL generation (matches TSDProxy configuration)
+      OVERWRITEHOST: ${NEXTCLOUD_TRUSTED_DOMAIN}
+      
+      # PERFORMANCE TUNING for your 11GB homelab system:
+      
+      # PHP memory limit (generous for your system)
+      PHP_MEMORY_LIMIT: 1024M
+      
+      # Large upload size (perfect for backing up photos/videos)
+      PHP_UPLOAD_LIMIT: 4G
+      
+      # OPcache for better PHP performance
+      OPCACHE_MEMORY_CONSUMPTION: 256
+      
+      # Regional settings
+      NEXTCLOUD_DEFAULT_PHONE_REGION: ${PHONE_REGION:-US}
+      
+      # Additional optimizations for homelab
+      NEXTCLOUD_TRUSTED_PROXIES: 172.20.0.0/16
+      APACHE_DISABLE_REWRITE_IP: 1
+    
+    networks:
+      - homelab_network
+    
+    # TSDPROXY LABELS - This replaces port mapping and NPM configuration
+    labels:
+      # Enable TSDProxy for automatic Tailscale machine creation
+      tsdproxy.enable: "true"
+      
+      # Tailscale machine name (creates nextcloud.your-tailnet.ts.net)
+      tsdproxy.name: "nextcloud"
+      
+      # Internal container port (Nextcloud runs on 80 inside container)
+      # TSDProxy will route HTTPS traffic to this port
+      #tsdproxy.container_port: "80"
+
+  # ==========================================================================
+  # Nextcloud Cron Container
+  # ==========================================================================
+  # Background job processor for maintenance tasks
+  nextcloud-cron:
+    image: nextcloud:stable
+    container_name: nextcloud-cron
+    restart: unless-stopped
+    
+    # Use Nextcloud's built-in cron script
+    entrypoint: /cron.sh
+    
+    depends_on:
+      - nextcloud-app
+    
+    # MUST match app container volumes exactly for maintenance tasks
+    volumes:
+      - homelab_services_nextcloud_app_data:/var/www/html
+      - homelab_services_nextcloud_config:/var/www/html/config
+      - homelab_services_nextcloud_custom_apps:/var/www/html/custom_apps
+      - homelab_services_nextcloud_user_data:/var/www/html/data
+      - homelab_shared_audiobooks:/var/www/html/data/__media__/audiobooks
+      - homelab_shared_books:/var/www/html/data/__media__/books
+      - homelab_shared_media:/var/www/html/data/__media__/files
+    
+    networks:
+      - homelab_network
+
+# =============================================================================
+# NEXTCLOUD SERVICE VOLUMES
+# =============================================================================
+# Following homelab naming convention: homelab_services_{service}_{purpose}_data
+
+volumes:
+  # Database storage - most critical for data integrity
+  homelab_services_nextcloud_db_data:
+    name: homelab_services_nextcloud_db_data
+    # Contains: Database files, user accounts, file metadata, sharing settings
+
+  # Redis cache storage - improves performance
+  homelab_services_nextcloud_redis_data:
+    name: homelab_services_nextcloud_redis_data
+    # Contains: Session cache, file locks, temporary data
+
+  # Nextcloud application files
+  homelab_services_nextcloud_app_data:
+    name: homelab_services_nextcloud_app_data
+    # Contains: Web application, core files, themes
+
+  # Configuration files - critical to backup
+  homelab_services_nextcloud_config:
+    name: homelab_services_nextcloud_config
+    # Contains: config.php, encryption settings, app configurations
+
+  # Custom apps from app store
+  homelab_services_nextcloud_custom_apps:
+    name: homelab_services_nextcloud_custom_apps
+    # Contains: Downloaded apps, app data
+
+  # User data files - largest volume
+  homelab_services_nextcloud_user_data:
+    name: homelab_services_nextcloud_user_data
+    # Contains: User files, personal folders, app data
+
+  # ==========================================================================
+  # SHARED VOLUMES - DEFINED IN SERVICES.DOCKER-COMPOSE.YAML
+  # ==========================================================================
+  # These volumes are defined at the orchestrator level (services.docker-compose.yaml)
+  # Individual services just mount them - no redefinition needed here
+
+# =============================================================================
+# NETWORK CONFIGURATION - DEFINED IN SERVICES.DOCKER-COMPOSE.YAML
+# =============================================================================
+# Network is defined at the orchestrator level for global access
+# Individual services just join the network - no redefinition needed here

@@ -8,7 +8,7 @@ lists: {}
 tailscale:
     providers:
         default:
-            authKeyFile: "./authkey"
+            authKeyFile: "/config/authkey"
             controlUrl: https://controlplane.tailscale.com
     dataDir: /data/
 http:

@@ -1,0 +1,189 @@
+# =============================================================================
+# SERVICES ORCHESTRATOR - USER-FACING APPLICATIONS
+# =============================================================================
+# Tier 3: Application services that provide end-user functionality
+# These depend on Core Platform (Tier 1) and Infrastructure (Tier 2)
+#
+# Philosophy:
+# - Personal cloud services (Nextcloud, file sync)
+# - Media servers (Audiobookshelf, Calibre-Web, Jellyfin)
+# - Productivity tools (document editing, notes, etc.)
+# - Home automation interfaces
+#
+# Features shared media volumes for seamless file sharing between services
+# =============================================================================
+
+# =============================================================================
+# PERSONAL CLOUD & FILE MANAGEMENT
+# =============================================================================
+# Core personal cloud services with selective encryption
+
+include:
+  # Nextcloud - Personal cloud with selective encryption & shared volumes
+  # Provides file sync, sharing, office apps, calendar, contacts
+  - services/nextcloud.docker-compose.yaml
+
+# =============================================================================
+# MEDIA LIBRARIES & ENTERTAINMENT
+# =============================================================================
+# Services for managing and consuming media content
+
+  # Audiobook and podcast management (uncomment when ready to deploy)
+  # - services/audiobookshelf.docker-compose.yaml
+  
+  # Ebook library management (uncomment when ready to deploy)  
+  # - services/calibre-web.docker-compose.yaml
+  
+  # Video media server (uncomment when ready to deploy)
+  # - services/jellyfin.docker-compose.yaml
+  
+  # Photo management and AI features (uncomment when ready to deploy)
+  # - services/photoprism.docker-compose.yaml
+
+# =============================================================================
+# PRODUCTIVITY & COLLABORATION
+# =============================================================================
+# Tools for productivity and team collaboration
+
+  # Note-taking and knowledge management (uncomment when ready)
+  # - services/obsidian-livesync.docker-compose.yaml
+  # - services/bookstack.docker-compose.yaml
+  # - services/outline.docker-compose.yaml
+  
+  # Document processing and office suite (uncomment when ready)
+  # - services/onlyoffice.docker-compose.yaml
+  # - services/collabora.docker-compose.yaml
+
+# =============================================================================
+# HOME AUTOMATION & IOT
+# =============================================================================
+# Smart home and automation services
+
+  # Home automation hub (uncomment when ready)
+  # - services/home-assistant.docker-compose.yaml
+  
+  # Network monitoring and management (uncomment when ready)
+  # - services/unifi-controller.docker-compose.yaml
+
+# =============================================================================
+# DEVELOPMENT & TOOLS
+# =============================================================================
+# Development and utility services
+
+  # Code server for web-based development (uncomment when ready)
+  # - services/code-server.docker-compose.yaml
+  
+  # Git repositories and code hosting (uncomment when ready)
+  # - services/gitea.docker-compose.yaml
+
+# =============================================================================
+# SHARED MEDIA VOLUMES - THE HOMELAB MAGIC!
+# =============================================================================
+# These volumes enable seamless file sharing between all services
+# Upload in any service → instantly available in others
+
+volumes:
+  # ==========================================================================
+  # SHARED CONTENT VOLUMES
+  # ==========================================================================
+  # These are mounted across multiple services for seamless file sharing
+  
+  # Audiobooks - shared between Nextcloud and Audiobookshelf
+  homelab_shared_audiobooks:
+    name: homelab_shared_audiobooks
+    # Accessible via:
+    # - Nextcloud: /data/__media__/audiobooks/
+    # - Audiobookshelf: /audiobooks/
+    # Result: Upload audiobook anywhere → playable in Audiobookshelf
+  
+  # Books (ebooks) - shared between Nextcloud, Calibre-Web, and Audiobookshelf
+  homelab_shared_books:
+    name: homelab_shared_books
+    # Accessible via:
+    # - Nextcloud: /data/__media__/books/
+    # - Calibre-Web: /books/
+    # - Audiobookshelf: /books/ (for ebooks)
+    # Result: Upload ebook anywhere → readable in any service
+  
+  # General media files - shared between Nextcloud and media servers
+  homelab_shared_media:
+    name: homelab_shared_media
+    # Accessible via:
+    # - Nextcloud: /data/__media__/files/
+    # - Jellyfin: /media/
+    # - PhotoPrism: /photoprism/
+    # Result: Upload video/photo anywhere → streamable/viewable everywhere
+  
+  # Music library - shared between music services
+  homelab_shared_music:
+    name: homelab_shared_music
+    # Future use with music servers like Navidrome, Jellyfin
+  
+  # Documents - shared for collaborative editing
+  homelab_shared_documents:
+    name: homelab_shared_documents
+    # Accessible via document editing services and Nextcloud
+
+# =============================================================================
+# NETWORK CONFIGURATION  
+# =============================================================================
+# Uses the homelab_network created by core platform (docker-compose.yaml)
+
+# networks:
+#   homelab_network:
+#     external: true
+#     name: homelab_network
+#     # This network was created by docker-compose.yaml core platform
+#     # All services inherit this network and can communicate by container name
+
+# =============================================================================
+# USAGE PATTERNS & WORKFLOWS
+# =============================================================================
+#
+# 📱 SHARED VOLUME WORKFLOWS:
+#
+# Upload audiobook via Nextcloud mobile app:
+#   1. Save to: /data/__media__/audiobooks/
+#   2. Instantly appears in Audiobookshelf library
+#   3. Listen from any device via Audiobookshelf apps
+#
+# Add ebook via Calibre desktop:
+#   1. Calibre-Web processes and adds to library
+#   2. Instantly appears in Nextcloud /__media__/books/
+#   3. Sync to mobile devices via Nextcloud app
+#
+# Upload photos via any method:
+#   1. Drop into shared_media volume
+#   2. Accessible via Nextcloud web interface
+#   3. PhotoPrism auto-imports and adds AI features
+#   4. Jellyfin includes in media library
+#
+# 🔒 ENCRYPTION STRATEGY:
+#
+# Personal files (encrypted in Nextcloud):
+#   - /Personal/ folders
+#   - /Work/ documents  
+#   - /Private/ content
+#   - Stored in nextcloud_user_data volume (Nextcloud only)
+#
+# Shared media (unencrypted for external access):
+#   - /__media__/ folders
+#   - Stored in shared volumes (multiple services)
+#   - Optimized for performance and compatibility
+#
+# 🚀 DEPLOYMENT STRATEGY:
+#
+# Start with core services:
+#   docker compose -f services.docker-compose.yaml up -d
+#
+# Add services incrementally:
+#   1. Uncomment desired service include
+#   2. Run: docker compose up -d
+#   3. Only new services start - existing ones unchanged
+#
+# Scale down for resource management:
+#   1. Comment out unused services  
+#   2. Run: docker compose up -d --remove-orphans
+#   3. Saves memory while preserving data
+#
+# =============================================================================
