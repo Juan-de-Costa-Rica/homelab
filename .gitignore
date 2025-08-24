@@ -1,2 +1,5 @@
-# ignore environment files
-.env
+# ignore environment files        
+.env                            
+
+# ignore TSDProxy config
+config/tsdproxy/authkey
