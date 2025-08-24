@@ -1,0 +1,40 @@
+# =============================================================================
+# DOCKGE - VISUAL DOCKER COMPOSE MANAGEMENT
+# =============================================================================
+# Lightweight Docker management interface
+# Alternative to Portainer with focus on compose files
+# =============================================================================
+
+services:
+  dockge:
+    image: louislam/dockge:1
+    container_name: dockge
+    restart: unless-stopped
+    
+    ports:
+      - "5001:5001"
+    
+    volumes:
+      # Docker socket for container management
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      
+      # App data and settings
+      - homelab_infra_dockge_data:/app/data
+      
+      # Project directory for managing compose files
+      - .:/opt/stacks
+    
+    environment:
+      - TZ=${TZ:-UTC}
+      - DOCKGE_STACKS_DIR=/opt/stacks
+    
+    networks:
+      - homelab_network
+    
+    labels:
+      # Enable Tailscale access
+      tsdproxy.enable: "true"
+      tsdproxy.name: "dockge"
+    
+    depends_on:
+      - tsdproxy

@@ -1,0 +1,30 @@
+# =============================================================================
+# UPTIME KUMA - SERVICE MONITORING & STATUS PAGES
+# =============================================================================
+# Beautiful monitoring dashboard for all services
+# Provides uptime monitoring, alerting, and status pages
+# =============================================================================
+
+services:
+  uptime-kuma:
+    image: louislam/uptime-kuma:1
+    container_name: uptime-kuma
+    restart: unless-stopped
+
+    ports:
+      - 3001:3001
+    
+    volumes:
+      # Monitoring data, configuration, alerts
+      - homelab_infra_kuma_data:/app/data
+    
+    environment:
+      - TZ=${TZ:-UTC}
+    
+    networks:
+      - homelab_network
+    
+    labels:
+      # Enable Tailscale access
+      tsdproxy.enable: "true"
+      tsdproxy.name: "kuma"

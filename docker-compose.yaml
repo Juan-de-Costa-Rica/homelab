@@ -1,0 +1,92 @@
+# =============================================================================
+# HOMELAB CORE PLATFORM - THREE-TIER ARCHITECTURE
+# =============================================================================
+# Tier 1: Core Platform (this file) - Foundation services that never change
+# Tier 2: Infrastructure (infrastructure.docker-compose.yaml) - Platform capabilities  
+# Tier 3: Applications (services.docker-compose.yaml) - User-facing services
+#
+# Usage: docker compose up -d (starts everything)
+# =============================================================================
+
+name: homelab
+
+# =============================================================================
+# TIER 1: CORE PLATFORM SERVICES
+# =============================================================================
+# These are the absolute foundation - everything else depends on these
+# Should rarely if ever change once working
+
+services:
+  # ==========================================================================
+  # TSDProxy - Core Networking & Secure Access
+  # ==========================================================================
+  # Creates Tailscale machines for all labeled containers
+  # Provides HTTPS access without port forwarding - the backbone of everything
+  tsdproxy:
+    image: almeidapaulopt/tsdproxy:2
+    container_name: tsdproxy
+    restart: unless-stopped
+    
+    volumes:
+      # Docker socket access to monitor containers
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      
+      # Tailscale state and certificates
+      - homelab_core_tsdproxy_data:/data
+      
+      # Configuration (authkey file)
+      - ./config/tsdproxy:/config:rw
+    
+    environment:
+      - TZ=${TZ:-UTC}
+      - TSDPROXY_AUTHKEY_FILE=/config/authkey
+      - TSDPROXY_HOSTNAME=${DOCKER_HOST_IP}
+    
+    ports:
+      - "8080:8080"  # Management interface
+    
+    networks:
+      - homelab_network
+    
+    labels:
+      # Enable TSDProxy for itself
+      tsdproxy.enable: "true"
+      tsdproxy.name: "tsdproxy"
+
+# =============================================================================
+# TIER 2 & 3: INFRASTRUCTURE + APPLICATIONS
+# =============================================================================
+# Include the other tiers - they depend on core platform being available
+
+include:
+  # Infrastructure services (monitoring, backup, notifications, etc.)
+  - infrastructure.docker-compose.yaml
+  
+  # Application services (nextcloud, media servers, etc.) 
+  - services.docker-compose.yaml
+
+# =============================================================================
+# GLOBAL NETWORK
+# =============================================================================
+# Shared by all tiers - TSDProxy routes traffic within this network
+# Allows services to communicate with each other by container name
+
+networks:
+  homelab_network:
+    name: homelab_network
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+        # This creates a private network for all containers
+        # Gateway will be 172.20.0.1 (used by TSDProxy)
+
+# =============================================================================
+# CORE PLATFORM VOLUMES
+# =============================================================================
+# Only volumes needed by core services - others defined in their respective tiers
+
+volumes:
+  # TSDProxy data (Tailscale machine state, certificates)
+  homelab_core_tsdproxy_data:
+    name: homelab_core_tsdproxy_data

@@ -1,0 +1,179 @@
+# =============================================================================
+# INFRASTRUCTURE ORCHESTRATOR - PLATFORM CAPABILITIES
+# =============================================================================
+# Tier 2: Platform services that provide capabilities to applications
+# These are swappable and can be changed independently of core and services
+#
+# Philosophy:
+# - Management tools (Dockge, Portainer, etc.)
+# - Monitoring & observability (Uptime Kuma, Grafana, etc.)  
+# - Backup & maintenance services
+# - Notifications & alerts
+# - Security & compliance tools
+#
+# Easy to comment out services to save resources or swap alternatives
+# =============================================================================
+
+# =============================================================================
+# MANAGEMENT & ADMINISTRATION
+# =============================================================================
+# Tools for managing the homelab infrastructure
+
+include:
+  # Visual Docker Compose management
+  # Lightweight alternative to Portainer - edit compose files in browser
+  - infrastructure/dockge.docker-compose.yaml
+  
+  # Alternative management tools (comment out current, uncomment desired)
+  # - infrastructure/portainer.yml          # Full-featured Docker GUI
+  # - infrastructure/yacht.yml              # Container management interface
+
+# =============================================================================
+# MONITORING & OBSERVABILITY  
+# =============================================================================
+# Services for monitoring system health and performance
+
+  # Beautiful, simple uptime monitoring
+  # Provides status pages and alerting
+  - infrastructure/kuma.docker-compose.yaml
+  
+  # Alternative monitoring stacks (comment out current, uncomment desired)
+  # - infrastructure/grafana-stack.yml      # Grafana + Prometheus + Node Exporter
+  # - infrastructure/zabbix.yml             # Enterprise-grade monitoring
+  # - infrastructure/netdata.yml            # Real-time performance monitoring
+
+# =============================================================================
+# BACKUP & MAINTENANCE
+# =============================================================================
+# Services for data protection and system maintenance
+
+  # Automated backup solutions (uncomment when ready)
+  # - infrastructure/duplicati.yml          # Cross-platform backup
+  # - infrastructure/restic.yml             # Fast, secure backup program
+  # - infrastructure/borg-backup.yml        # Deduplicating backup
+
+  # System maintenance tools
+  # - infrastructure/watchtower.yml         # Automatic container updates
+  # - infrastructure/diun.yml               # Docker image update notifications
+
+# =============================================================================
+# NOTIFICATIONS & ALERTS
+# =============================================================================
+# Services for sending notifications and managing alerts
+
+  # Notification services (uncomment when needed)
+  # - infrastructure/ntfy.yml               # Simple notification service
+  # - infrastructure/gotify.yml             # Self-hosted push notifications
+  # - infrastructure/apprise.yml            # Universal notification gateway
+
+# =============================================================================
+# SECURITY & COMPLIANCE
+# =============================================================================
+# Services for security monitoring and compliance
+
+  # Security tools (uncomment when needed)
+  # - infrastructure/fail2ban.yml           # Intrusion prevention
+  # - infrastructure/crowdsec.yml           # Collaborative security
+  # - infrastructure/authelia.yml           # Authentication & authorization
+
+# =============================================================================
+# INFRASTRUCTURE VOLUMES
+# =============================================================================
+# Volumes specific to infrastructure services
+# Application volumes are defined in services.docker-compose.yaml
+
+volumes:
+  # ==========================================================================
+  # Management Tool Data
+  # ==========================================================================
+  
+  # Dockge data (Docker management interface data)
+  homelab_infra_dockge_data:
+    name: homelab_infra_dockge_data
+    # Contains: Stack configurations, user settings, interface preferences
+
+  # Alternative management tools (uncomment when used)
+  # portainer_data:
+  #   name: homelab_portainer_data
+
+  # ==========================================================================
+  # Monitoring & Observability Data
+  # ==========================================================================
+  
+  # Uptime Kuma data (monitoring history and configurations)
+  homelab_infra_kuma_data:
+    name: homelab_infra_kuma_data
+    # Contains: Uptime history, notification settings, status page configs
+
+  # Alternative monitoring stacks (uncomment when used)
+  # grafana_data:
+  #   name: homelab_grafana_data
+  # prometheus_data:
+  #   name: homelab_prometheus_data
+
+  # ==========================================================================
+  # Backup & Maintenance Data
+  # ==========================================================================
+  
+  # Backup tool configurations (uncomment when used)
+  # duplicati_data:
+  #   name: homelab_duplicati_data
+  # restic_cache:
+  #   name: homelab_restic_cache
+
+  # ==========================================================================
+  # Notification Service Data
+  # ==========================================================================
+  
+  # Notification services (uncomment when used)
+  # ntfy_data:
+  #   name: homelab_ntfy_data
+  # gotify_data:
+  #   name: homelab_gotify_data
+
+# =============================================================================
+# INFRASTRUCTURE USAGE PATTERNS
+# =============================================================================
+#
+# 🛠️ MANAGEMENT WORKFLOWS:
+#
+# Start only infrastructure:
+#   docker compose -f infrastructure.docker-compose.yaml up -d
+#
+# Restart monitoring without affecting other services:
+#   docker compose restart uptime-kuma
+#
+# Swap monitoring solutions:
+#   1. Comment out: # - infrastructure/monitoring.yml
+#   2. Uncomment: - infrastructure/grafana-stack.yml
+#   3. Run: docker compose up -d
+#
+# Add backup services:
+#   1. Uncomment: - infrastructure/duplicati.yml
+#   2. Run: docker compose up -d
+#   3. Only Duplicati starts - existing services unaffected
+#
+# 💾 RESOURCE MANAGEMENT:
+#
+# Free up memory by commenting out unused services:
+#   # - infrastructure/dockge.yml           # Save ~100MB RAM
+#   # - infrastructure/grafana-stack.yml    # Save ~400MB RAM
+#
+# Monitor resource usage:
+#   docker stats | grep homelab
+#
+# 🔄 MAINTENANCE PATTERNS:
+#
+# Update infrastructure services:
+#   docker compose -f infrastructure.docker-compose.yaml pull
+#   docker compose -f infrastructure.docker-compose.yaml up -d
+#
+# Backup infrastructure data:
+#   docker run --rm -v homelab_dockge_data:/data -v $(pwd):/backup \
+#     alpine tar -czf /backup/infrastructure-$(date +%Y%m%d).tar.gz -C /data .
+#
+# Check infrastructure health:
+#   docker compose -f infrastructure.docker-compose.yaml ps
+#   docker compose -f infrastructure.docker-compose.yaml logs --tail=50
+#
+# =============================================================================
