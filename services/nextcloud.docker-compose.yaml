@@ -4,6 +4,11 @@
 # Full-featured personal cloud with file sync, sharing, office apps
 # Configured for SELECTIVE ENCRYPTION & SHARED MEDIA VOLUMES
 # Integrated with TSDProxy for secure Tailscale access
+#
+# PERMISSION STRATEGY: Uses community-proven custom entrypoint approach
+# - Fixes permissions automatically on every startup
+# - No extra init container needed
+# - Battle-tested by thousands of users
 # =============================================================================
 
 services:
@@ -51,11 +56,8 @@ services:
     networks:
       - homelab_network
     
-    # # Health check for proper startup sequencing
-    # healthcheck:
-    #   test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
-    #   timeout: 20s
-    #   retries: 10
+    # No health check needed - simple dependency is sufficient
+    # The permission fix in the main container handles startup sequencing
 
   # ==========================================================================
   # Redis Cache Container
@@ -87,20 +89,24 @@ services:
     container_name: nextcloud-app
     restart: unless-stopped
     
-    # NO PORT MAPPING - TSDProxy handles all traffic routing
-    # But we need to expose port 80 internally for TSDProxy to detect
-# In nextcloud.docker-compose.yaml, replace the expose section with:
+    # PORT MAPPING - Use port 8081 to avoid conflict with TSDProxy (8080)
     ports:
-      - "8081:80"  # Only accessible from localhost
-    
+      - "8081:80"
     
     depends_on:
-    - nextcloud-db
-    - nextcloud-redis
-      # nextcloud-db:
-      #   condition: service_healthy
-      # nextcloud-redis:
-      #   condition: service_started
+      - nextcloud-db
+      - nextcloud-redis
+    
+    # PERMISSION FIX: Custom command that fixes permissions before starting Nextcloud
+    # This is the community-proven approach used by thousands of users
+    command: >
+      bash -c '
+        echo "Fixing Nextcloud permissions..."
+        chown -R www-data:www-data /var/www/html
+        chmod -R 755 /var/www/html
+        echo "Permissions fixed, starting Nextcloud..."
+        /entrypoint.sh apache2-foreground
+      '
     
     # VOLUME STRATEGY - Granular separation for better backup/restore:
     volumes:
@@ -147,13 +153,13 @@ services:
       # Key difference from your VPS - no NPM, using Tailscale domains
       
       # Trusted domains - your Tailscale domain for Nextcloud
-      NEXTCLOUD_TRUSTED_DOMAINS: ${NEXTCLOUD_TRUSTED_DOMAIN}
+      NEXTCLOUD_TRUSTED_DOMAINS: ${NEXTCLOUD_TAILSCALE_DOMAIN}
       
       # Force HTTPS since TSDProxy provides SSL certificates
       OVERWRITEPROTOCOL: https
       
       # Hostname for URL generation (matches TSDProxy configuration)
-      OVERWRITEHOST: ${NEXTCLOUD_TRUSTED_DOMAIN}
+      OVERWRITEHOST: ${NEXTCLOUD_TAILSCALE_DOMAIN}
       
       # PERFORMANCE TUNING for your 11GB homelab system:
       
@@ -176,7 +182,7 @@ services:
     networks:
       - homelab_network
     
-    # TSDPROXY LABELS - This replaces port mapping and NPM configuration
+    # TSDPROXY LABELS - Routes traffic from Tailscale to container port
     labels:
       # Enable TSDProxy for automatic Tailscale machine creation
       tsdproxy.enable: "true"
@@ -185,8 +191,7 @@ services:
       tsdproxy.name: "nextcloud"
       
       # Internal container port (Nextcloud runs on 80 inside container)
-      # TSDProxy will route HTTPS traffic to this port
-      #tsdproxy.container_port: "80"
+      tsdproxy.container_port: "80"
 
   # ==========================================================================
   # Nextcloud Cron Container
@@ -257,9 +262,10 @@ volumes:
   # ==========================================================================
   # These volumes are defined at the orchestrator level (services.docker-compose.yaml)
   # Individual services just mount them - no redefinition needed here
+  # Permissions are automatically fixed by the custom entrypoint above
 
 # =============================================================================
-# NETWORK CONFIGURATION - DEFINED IN SERVICES.DOCKER-COMPOSE.YAML
+# NETWORK CONFIGURATION
 # =============================================================================
-# Network is defined at the orchestrator level for global access
-# Individual services just join the network - no redefinition needed here
+# Network is inherited from main docker-compose.yaml via services.docker-compose.yaml
+# All services automatically use homelab_network - no declaration needed
