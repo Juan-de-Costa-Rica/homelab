@@ -1,5 +1,11 @@
-# ignore environment files        
+# Sensitive files - NEVER commit these       
 .env                            
-
-# ignore TSDProxy config
 config/tsdproxy/authkey
+*.key
+*.pem
+
+# Logs and temp files
+logs/
+*.log
+tmp/
+.DS_Store
