@@ -17,7 +17,7 @@ services:
   # ==========================================================================
   # Optimized for homelab single-user setup with performance tuning
   nextcloud-db:
-    image: mariadb:lts
+    image: mariadb:11.4
     container_name: nextcloud-db
     restart: unless-stopped
     
@@ -193,7 +193,7 @@ services:
       NEXTCLOUD_DEFAULT_PHONE_REGION: ${PHONE_REGION:-US}
       
       # Additional optimizations for homelab
-      NEXTCLOUD_TRUSTED_PROXIES: 172.20.0.0/24
+      NEXTCLOUD_TRUSTED_PROXIES: 172.20.0.0/16
       APACHE_DISABLE_REWRITE_IP: 1
     
     networks:
