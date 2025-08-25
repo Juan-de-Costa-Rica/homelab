@@ -100,12 +100,22 @@ services:
     # PERMISSION FIX: Custom command that fixes permissions before starting Nextcloud
     # This is the community-proven approach used by thousands of users
     command: >
-      bash -c '
-        echo "Fixing Nextcloud permissions..."
-        chown -R www-data:www-data /var/www/html
-        chmod -R 755 /var/www/html
-        echo "Permissions fixed, starting Nextcloud..."
-        /entrypoint.sh apache2-foreground
+      sh -c '
+        echo "Checking Nextcloud permissions..."
+        
+        # Only fix permissions if needed (more efficient)
+        if [ ! -w /var/www/html/data ]; then
+          echo "Data directory not writable, fixing permissions..."
+          chown -R www-data:www-data /var/www/html
+          find /var/www/html -type d -exec chmod 750 {} \;
+          find /var/www/html -type f -exec chmod 640 {} \;
+          echo "Permissions fixed"
+        else
+          echo "Data directory already writable"
+        fi
+        
+        echo "Starting Nextcloud..."
+        exec /entrypoint.sh apache2-foreground
       '
     
     # VOLUME STRATEGY - Granular separation for better backup/restore:
@@ -176,7 +186,7 @@ services:
       NEXTCLOUD_DEFAULT_PHONE_REGION: ${PHONE_REGION:-US}
       
       # Additional optimizations for homelab
-      NEXTCLOUD_TRUSTED_PROXIES: 172.20.0.0/16
+      NEXTCLOUD_TRUSTED_PROXIES: 172.20.0.0/24
       APACHE_DISABLE_REWRITE_IP: 1
     
     networks:

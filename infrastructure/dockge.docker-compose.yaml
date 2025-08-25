@@ -35,6 +35,3 @@ services:
       # Enable Tailscale access
       tsdproxy.enable: "true"
       tsdproxy.name: "dockge"
-    
-    depends_on:
-      - tsdproxy

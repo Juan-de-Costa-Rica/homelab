@@ -2,8 +2,11 @@ defaultProxyProvider: default
 docker:
     local:
         host: unix:///var/run/docker.sock
-        targetHostname: 192.168.86.165 #host.docker.internal #192.168.86.165
-        tryDockerInternalNetwork: false
+        # targetHostname: 192.168.86.165 #host.docker.internal #192.168.86.165
+        # Try host.docker.internal first (auto-detection)
+        targetHostname: host.docker.internal
+        tryDockerInternalNetwork: true
+        # tryDockerInternalNetwork: false
 lists: {}
 tailscale:
     providers:
