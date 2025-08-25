@@ -28,3 +28,11 @@ services:
       # Enable Tailscale access
       tsdproxy.enable: "true"
       tsdproxy.name: "kuma"
+
+    # Uptime Kuma health check
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s  # Uptime Kuma takes a bit longer to start

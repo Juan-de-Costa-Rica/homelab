@@ -53,6 +53,14 @@ services:
       tsdproxy.enable: "true"
       tsdproxy.name: "tsdproxy"
 
+    # TSDProxy health check - test its management interface
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 120s  # TSDProxy needs time to connect to Tailscale
+
 # =============================================================================
 # TIER 2 & 3: INFRASTRUCTURE + APPLICATIONS
 # =============================================================================

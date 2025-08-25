@@ -56,8 +56,13 @@ services:
     networks:
       - homelab_network
     
-    # No health check needed - simple dependency is sufficient
-    # The permission fix in the main container handles startup sequencing
+    # MODERN HEALTHCHECK - Uses built-in healthcheck.sh script
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
 
   # ==========================================================================
   # Redis Cache Container
@@ -80,6 +85,14 @@ services:
     networks:
       - homelab_network
 
+    # Redis health check using redis-cli ping
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s  # Redis starts quickly
+
   # ==========================================================================
   # Nextcloud Application Container
   # ==========================================================================
@@ -94,27 +107,21 @@ services:
       - "8081:80"
     
     depends_on:
-      - nextcloud-db
-      - nextcloud-redis
+      nextcloud-db:
+        condition: service_healthy  # Wait for database
+      nextcloud-redis:
+        condition: service_healthy  # Wait for Redis
     
     # PERMISSION FIX: Custom command that fixes permissions before starting Nextcloud
     # This is the community-proven approach used by thousands of users
+    # SIMPLIFIED: Always fix permissions (most reliable approach)
     command: >
       sh -c '
-        echo "Checking Nextcloud permissions..."
-        
-        # Only fix permissions if needed (more efficient)
-        if [ ! -w /var/www/html/data ]; then
-          echo "Data directory not writable, fixing permissions..."
-          chown -R www-data:www-data /var/www/html
-          find /var/www/html -type d -exec chmod 750 {} \;
-          find /var/www/html -type f -exec chmod 640 {} \;
-          echo "Permissions fixed"
-        else
-          echo "Data directory already writable"
-        fi
-        
-        echo "Starting Nextcloud..."
+        echo "Setting up Nextcloud permissions..."
+        chown -R www-data:www-data /var/www/html
+        find /var/www/html -type d -exec chmod 750 {} \;
+        find /var/www/html -type f -exec chmod 640 {} \;
+        echo "Permissions configured, starting Nextcloud..."
         exec /entrypoint.sh apache2-foreground
       '
     
@@ -202,6 +209,15 @@ services:
       
       # Internal container port (Nextcloud runs on 80 inside container)
       tsdproxy.container_port: "80"
+        
+    # FIXED: Proper health check using Nextcloud's status endpoint
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/status.php"]
+      interval: 60s       # Not too aggressive - every minute
+      timeout: 30s        # Generous timeout for Nextcloud
+      retries: 3          # Reasonable retry count
+      start_period: 300s  # 5 minutes for first-time setup
+
 
   # ==========================================================================
   # Nextcloud Cron Container
@@ -215,8 +231,10 @@ services:
     # Use Nextcloud's built-in cron script
     entrypoint: /cron.sh
     
+    # ELEGANT SOLUTION: Wait for Nextcloud app to be healthy before starting cron
     depends_on:
-      - nextcloud-app
+      nextcloud-app:
+        condition: service_healthy  # This fixes your cron timing issue!
     
     # MUST match app container volumes exactly for maintenance tasks
     volumes:
@@ -230,6 +248,13 @@ services:
     
     networks:
       - homelab_network
+
+    healthcheck:
+      test: ["CMD", "pgrep", "crond"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
 
 # =============================================================================
 # NEXTCLOUD SERVICE VOLUMES

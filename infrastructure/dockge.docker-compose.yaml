@@ -35,3 +35,11 @@ services:
       # Enable Tailscale access
       tsdproxy.enable: "true"
       tsdproxy.name: "dockge"
+
+    # Dockge health check - test its web interface
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5001"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
