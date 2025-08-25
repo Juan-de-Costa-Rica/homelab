@@ -112,23 +112,22 @@ services:
       nextcloud-redis:
         condition: service_healthy  # Wait for Redis
     
-    # PERMISSION FIX + Forwarded Headers
-    # Fix permissions (community-proven) AND ensure forwarded_for_headers is set
+    # CUSTOM ENTRYPOINT - Fixes permissions and config on every startup
+    # - Ensures www-data owns all files
+    # - Sets secure directory and file permissions
+    # - Configures trusted proxies and headers
+    # - Runs maintenance repair tasks
+    # - Sets maintenance window to 3am daily
+    # - Starts Apache in foreground
     command: >
       sh -c '
-        echo "Setting up Nextcloud permissions..."
         chown -R www-data:www-data /var/www/html
         find /var/www/html -type d -exec chmod 750 {} \;
         find /var/www/html -type f -exec chmod 640 {} \;
-
-        echo "Applying occ settings..."
-        su -s /bin/sh www-data -c "php /var/www/html/occ config:system:set trusted_proxies 0 --value=\"172.20.0.0/16\""
         su -s /bin/sh www-data -c "php /var/www/html/occ config:system:set forwarded_for_headers 0 --value=\"HTTP_X_FORWARDED_FOR\""
         su -s /bin/sh www-data -c "php /var/www/html/occ config:system:set forwarded_for_headers 1 --value=\"HTTP_X_REAL_IP\""
         su -s /bin/sh www-data -c "php /var/www/html/occ maintenance:repair --include-expensive"
-        su -s /bin/sh www-data -c "php /var/www/html/occ config:system:set maintenance_window_start --type=integer --value=1"
-
-        echo "Permissions and proxy headers configured, starting Nextcloud..."
+        su -s /bin/sh www-data -c "php /var/www/html/occ config:system:set maintenance_window_start --type=integer --value=3"
         exec /entrypoint.sh apache2-foreground
       '
     
