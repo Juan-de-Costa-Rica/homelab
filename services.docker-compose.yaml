@@ -22,6 +22,7 @@ include:
   # Nextcloud - Personal cloud with selective encryption & shared volumes
   # Provides file sync, sharing, office apps, calendar, contacts
   - services/nextcloud.docker-compose.yaml
+  - services/audiobookshelf.docker-compose.yaml
 
 # =============================================================================
 # MEDIA LIBRARIES & ENTERTAINMENT
@@ -88,6 +89,9 @@ volumes:
   # ==========================================================================
   # These are mounted across multiple services for seamless file sharing
   
+  homelab_shared_podcasts:
+    name: homelab_shared_podcasts
+
   # Audiobooks - shared between Nextcloud and Audiobookshelf
   homelab_shared_audiobooks:
     name: homelab_shared_audiobooks

@@ -1,0 +1,32 @@
+services:
+  audiobookshelf:
+    image: ghcr.io/advplyr/audiobookshelf:latest
+    container_name: audiobookshelf
+    restart: unless-stopped
+    
+    ports:
+      - 13378:80
+    
+    volumes:
+      - homelab_shared_audiobooks:/audiobooks
+      - homelab_shared_audiobooks:/podcasts
+      - homelab_services_audiobookshelf_config:/config
+      - homelab_services_audiobookshelf_metadata:/metadata
+    
+    environment:
+      - TZ=${TZ}
+
+    networks:
+      - homelab_network
+    
+    labels:
+      # Enable Tailscale access
+      tsdproxy.enable: "true"
+      tsdproxy.name: "audiobookshelf"
+
+volumes:
+  # Database storage - most critical for data integrity
+  homelab_services_audiobookshelf_config:
+    name: homelab_services_audiobookshelf_config
+  homelab_services_audiobookshelf_metadata:
+    name: homelab_services_audiobookshelf_metadata
