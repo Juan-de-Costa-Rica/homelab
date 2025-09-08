@@ -23,6 +23,11 @@ include:
   # Provides file sync, sharing, office apps, calendar, contacts
   - services/nextcloud.docker-compose.yaml
   - services/audiobookshelf.docker-compose.yaml
+  # - services/calibre.docker-compose.yaml
+  # - services/calibre-desktop.docker-compose.yaml  # Real Calibre instead!
+  # # Add this line to the include section:
+  - services/calibre-web-automated.docker-compose.yaml
+  - services/qbittorrent.docker-compose.yaml
 
 # =============================================================================
 # MEDIA LIBRARIES & ENTERTAINMENT
@@ -101,8 +106,8 @@ volumes:
     # Result: Upload audiobook anywhere → playable in Audiobookshelf
   
   # Books (ebooks) - shared between Nextcloud, Calibre-Web, and Audiobookshelf
-  homelab_shared_books:
-    name: homelab_shared_books
+  homelab_shared_ebooks:
+    name: homelab_shared_ebooks
     # Accessible via:
     # - Nextcloud: /data/__media__/books/
     # - Calibre-Web: /books/
@@ -127,6 +132,13 @@ volumes:
   homelab_shared_documents:
     name: homelab_shared_documents
     # Accessible via document editing services and Nextcloud
+
+  # Torrents - shared download location for qBittorrent and others
+  homelab_shared_torrents:
+    name: homelab_shared_torrents
+    # Accessible via:
+    # - qBittorrent: /downloads
+
 
 # =============================================================================
 # NETWORK CONFIGURATION  

@@ -1,0 +1,157 @@
+# =============================================================================
+# QBITTORRENT - TORRENT DOWNLOADER WITH MEDIA INTEGRATION
+# =============================================================================
+# Unified workspace: All torrenting happens within /downloads/
+# Completed files auto-organize to subdirectories that other services read
+# =============================================================================
+
+services:
+  qbittorrent:
+    image: lscr.io/linuxserver/qbittorrent:latest
+    container_name: qbittorrent
+    restart: unless-stopped
+    
+    environment:
+      # User/Group IDs for proper file permissions
+      - PUID=1000
+      - PGID=1000
+      - TZ=${TZ:-UTC}
+      
+      # Web UI configuration
+      - WEBUI_PORT=8088
+      
+      # Torrenting port for peer connections
+      - TORRENTING_PORT=6881
+    
+    volumes:
+      # Application configuration and settings
+      - homelab_services_qbittorrent_config:/config
+      
+      # UNIFIED DOWNLOADS WORKSPACE:
+      # Main torrenting workspace - contains incomplete, completed, torrents, watch
+      - homelab_shared_torrents:/downloads
+      
+      # SHARED SUBDIRECTORIES within /downloads/:
+      # Other services read from these specific paths within the downloads workspace
+      - homelab_shared_audiobooks:/downloads/audiobooks
+      - homelab_shared_ebooks:/downloads/ebooks
+      - homelab_shared_podcasts:/downloads/podcasts
+      
+      # Future media expansion (uncomment when needed)
+      # - homelab_shared_videos:/downloads/videos
+      # - homelab_shared_music:/downloads/music
+    
+    ports:
+      # Web UI access (avoiding conflict with TSDProxy port 8080)
+      - "8088:8088"
+      
+      # Torrenting ports (TCP and UDP for peer connections)
+      - "6881:6881"
+      - "6881:6881/udp"
+    
+    networks:
+      - homelab_network
+    
+    labels:
+      # Enable Tailscale access
+      tsdproxy.enable: "true"
+      tsdproxy.name: "qbittorrent"
+      tsdproxy.container_port: "8088"
+    
+    # Health check to ensure qBittorrent web UI is responding
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8088"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+# =============================================================================
+# QBITTORRENT VOLUMES
+# =============================================================================
+
+volumes:
+  # qBittorrent application configuration
+  homelab_services_qbittorrent_config:
+    name: homelab_services_qbittorrent_config
+    # Contains: Web UI settings, download categories, RSS feeds, user preferences
+
+# =============================================================================
+# UNIFIED WORKSPACE ARCHITECTURE
+# =============================================================================
+#
+# 📁 INTERNAL DIRECTORY STRUCTURE (/downloads/):
+# /downloads/                    # Main workspace (homelab_shared_torrents)
+# ├── incomplete/                # Active downloads (qBittorrent managed)
+# ├── completed/                 # Default for uncategorized completed torrents
+# ├── torrents/                  # .torrent files storage
+# ├── watch/                     # Watch folder for auto-adding torrents
+# ├── audiobooks/                # Completed audiobooks (homelab_shared_audiobooks)
+# ├── ebooks/                    # Completed ebooks (homelab_shared_ebooks)
+# ├── podcasts/                  # Completed podcasts (homelab_shared_podcasts)
+# └── [future]/                  # videos/, music/, etc.
+#
+# 🎧 AUDIOBOOK WORKFLOW:
+# 1. Add torrent with "audiobooks" category in qBittorrent
+# 2. Downloads to /downloads/incomplete/ during download
+# 3. On completion → Auto-move to /downloads/audiobooks/ (via category rules)
+# 4. Audiobookshelf reads homelab_shared_audiobooks (/downloads/audiobooks/)
+# 5. Files instantly available in both services, zero duplication
+#
+# 📚 EBOOK WORKFLOW:
+# 1. Add torrent with "ebooks" category in qBittorrent
+# 2. Downloads to /downloads/incomplete/ during download  
+# 3. On completion → Auto-move to /downloads/ebooks/ (via category rules)
+# 4. Calibre reads homelab_shared_ebooks (/downloads/ebooks/)
+# 5. Files instantly available in both services, zero duplication
+#
+# 🎙️ PODCAST WORKFLOW:
+# 1. Add torrent with "podcasts" category in qBittorrent
+# 2. Downloads to /downloads/incomplete/ during download
+# 3. On completion → Auto-move to /downloads/podcasts/ (via category rules)
+# 4. Audiobookshelf reads homelab_shared_podcasts (/downloads/podcasts/)
+# 5. Files instantly available in both services, zero duplication
+#
+# 🔧 REQUIRED QBITTORRENT CONFIGURATION:
+# After deployment, configure these settings in the qBittorrent Web UI:
+#
+# Category Settings (Options → Downloads):
+# - Default save path: /downloads/completed/
+# - Keep incomplete torrents in: /downloads/incomplete/
+#
+# Auto-move Categories (Options → Downloads → Category):
+# ┌─────────────┬────────────────────────────┐
+# │ Category    │ Save Path                  │
+# ├─────────────┼────────────────────────────┤
+# │ audiobooks  │ /downloads/audiobooks/     │
+# │ ebooks      │ /downloads/ebooks/         │
+# │ podcasts    │ /downloads/podcasts/       │
+# │ [future]    │ /downloads/videos/         │
+# └─────────────┴────────────────────────────┘
+#
+# Connection Settings (Options → Connection):
+# - Port used for incoming connections: 6881
+# - Use UPnP/NAT-PMP: Enabled (if router supports)
+#
+# ✨ ARCHITECTURE BENEFITS:
+# - Single unified workspace - everything in /downloads/
+# - Zero file moves between volumes (same filesystem, instant moves)
+# - No file duplication - one copy accessible by multiple services
+# - Efficient storage usage and fast operations
+# - Clean separation: qBittorrent owns workspace, services read subdirectories
+# - Preserves seeding while files are accessible to other services
+# - Future-proof: easy to add new media types as subdirectories
+#
+# 🔒 SECURITY CONSIDERATIONS:
+# - Only download legal content (public domain audiobooks, creative commons)
+# - Consider VPN container if downloading copyrighted material
+# - qBittorrent Web UI accessible via secure Tailscale only
+# - No public port forwarding required
+#
+# 📊 MONITORING & MAINTENANCE:
+# - Web UI: https://qbittorrent.your-tailnet.ts.net
+# - Monitor via Uptime Kuma health endpoint
+# - Check integration: Verify files appear in Audiobookshelf and Calibre
+# - Storage usage: Monitor homelab_shared_torrents volume size
+#
+# =============================================================================

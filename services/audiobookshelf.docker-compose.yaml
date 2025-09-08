@@ -9,7 +9,7 @@ services:
     
     volumes:
       - homelab_shared_audiobooks:/audiobooks
-      - homelab_shared_audiobooks:/podcasts
+      - homelab_shared_podcasts:/podcasts
       - homelab_services_audiobookshelf_config:/config
       - homelab_services_audiobookshelf_metadata:/metadata
     

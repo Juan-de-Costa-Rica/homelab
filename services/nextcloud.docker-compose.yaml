@@ -162,9 +162,10 @@ services:
       
       # Audiobooks shared with Audiobookshelf
       - homelab_shared_audiobooks:/var/www/html/data/__media__/audiobooks
+      - homelab_shared_podcasts:/var/www/html/data/__media__/podcasts
       
       # Books shared with Calibre-Web and Audiobookshelf
-      - homelab_shared_books:/var/www/html/data/__media__/books
+      - homelab_shared_ebooks:/var/www/html/data/__media__/books
       
       # General media shared with media servers
       - homelab_shared_media:/var/www/html/data/__media__/files
@@ -261,7 +262,8 @@ services:
       - homelab_services_nextcloud_custom_apps:/var/www/html/custom_apps
       - homelab_services_nextcloud_user_data:/var/www/html/data
       - homelab_shared_audiobooks:/var/www/html/data/__media__/audiobooks
-      - homelab_shared_books:/var/www/html/data/__media__/books
+      - homelab_shared_podcasts:/var/www/html/data/__media__/podcasts
+      - homelab_shared_ebooks:/var/www/html/data/__media__/books
       - homelab_shared_media:/var/www/html/data/__media__/files
     
     networks:

@@ -1,0 +1,36 @@
+# services/calibre-desktop.docker-compose.yaml
+
+services:
+  calibre-desktop:
+    image: lscr.io/linuxserver/calibre:latest
+    container_name: calibre-desktop
+    restart: unless-stopped
+    
+    ports:
+      - "8082:8080"
+      - "8181:8181"  # Additional port for web server
+    
+    volumes:
+      # Main Calibre library - this is where your ebooks will live
+      - homelab_shared_ebooks:/config
+    
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=${TZ:-UTC}
+      # Optional: Set password for web access
+      - PASSWORD=${CALIBRE_PASSWORD:-drowssap}
+    
+    networks:
+      - homelab_network
+    
+    labels:
+      # Enable Tailscale access
+      tsdproxy.enable: "true"
+      tsdproxy.name: "calibre"
+      tsdproxy.container_port: "8080"
+      # Access at: https://calibre.your-tailnet.ts.net
+
+    # Calibre desktop needs relaxed security for GUI
+    security_opt:
+      - seccomp:unconfined

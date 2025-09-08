@@ -1,0 +1,120 @@
+# =============================================================================
+# CALIBRE-WEB-AUTOMATED - ALL-IN-ONE EBOOK MANAGEMENT
+# =============================================================================
+# Combines Calibre-Web UI with full Calibre features + automation
+# - Auto metadata fetching & cover downloads ✅
+# - Send to Kindle functionality ✅  
+# - Auto format conversion (28+ formats → EPUB) ✅
+# - Web uploads with auto-import ✅
+# - Flutter companion mobile app available ✅
+# - Auto database creation (no more metadata.db issues!) ✅
+# =============================================================================
+
+services:
+  calibre-web-automated:
+    image: crocodilestick/calibre-web-automated:latest
+    container_name: calibre-web-automated
+    restart: unless-stopped
+    
+    ports:
+      - "8083:8083"
+    
+    volumes:
+      # CWA configuration and app database
+      - homelab_services_cwa_config:/config
+      
+      # Auto-ingest folder - drop books here for automatic import
+      - homelab_services_cwa_ingest:/cwa-book-ingest
+      
+      # Main library - this is where organized books live
+      # SHARED with Nextcloud for easy access/backup
+      - homelab_shared_ebooks:/calibre-library
+    
+    environment:
+      # User permissions for file handling
+      - PUID=1000
+      - PGID=1000
+      - TZ=${TZ:-UTC}
+    
+    networks:
+      - homelab_network
+    
+    labels:
+      # Enable Tailscale access via TSDProxy
+      tsdproxy.enable: "true"
+      tsdproxy.name: "calibre-web-automated"
+      tsdproxy.container_port: "8083"
+      # Access: https://calibre-web-automated.your-tailnet.ts.net
+
+    # CWA health check
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8083"]
+      interval: 60s
+      timeout: 15s
+      retries: 3
+      start_period: 180s  # CWA needs time to initialize everything
+
+# =============================================================================
+# CWA VOLUMES - Following homelab naming convention
+# =============================================================================
+
+volumes:
+  # CWA configuration and settings
+  homelab_services_cwa_config:
+    name: homelab_services_cwa_config
+    # Contains: User accounts, settings, conversion rules, app database
+
+  # Auto-ingest folder for new books
+  homelab_services_cwa_ingest:
+    name: homelab_services_cwa_ingest  
+    # Contains: Books dropped here get auto-processed and imported
+    # This is temporary storage - books move to library after processing
+
+  # ==========================================================================
+  # SHARED VOLUME INTEGRATION - The homelab magic!
+  # ==========================================================================
+  # homelab_shared_ebooks volume defined in main services.docker-compose.yaml
+  # This volume is mounted in both CWA and Nextcloud:
+  # - CWA: /calibre-library (organized library with metadata.db)
+  # - Nextcloud: /var/www/html/data/__media__/ebooks/ (easy access/backup)
+  #
+  # Result: Upload via Nextcloud → Auto-import via CWA
+  #         OR Upload via CWA web interface → Instant Nextcloud access
+
+# =============================================================================
+# CWA WORKFLOW MAGIC ✨
+# =============================================================================
+#
+# 📱 UPLOAD METHODS:
+# 1. Web Upload: CWA interface → Auto-process → Perfect metadata
+# 2. Nextcloud Upload: Mobile/desktop → Drop in ingest folder → Auto-import  
+# 3. Bulk Upload: Copy many books to ingest folder → Mass import
+#
+# 🤖 AUTO-PROCESSING:
+# - Converts 28+ formats to EPUB automatically
+# - Fetches metadata from multiple sources
+# - Downloads high-quality covers
+# - Organizes files with proper structure
+# - Updates database automatically
+#
+# 📧 KINDLE INTEGRATION:
+# - Configure SMTP in CWA settings
+# - Add Kindle email to your profile  
+# - Click send button → Book delivered to Kindle!
+#
+# 📱 MOBILE ACCESS:
+# - Install "Calibre Web Companion" app (Flutter, Material You)
+# - Browse library, download books directly to phone
+# - Much better mobile experience than web interface
+#
+# 🔄 NEXTCLOUD INTEGRATION:
+# - All books accessible via Nextcloud at /__media__/ebooks/
+# - Backup entire library via Nextcloud sync
+# - Share specific books via Nextcloud sharing
+#
+# 🎯 DEFAULT LOGIN:
+# - Username: admin
+# - Password: admin123
+# - CHANGE IMMEDIATELY after first login!
+#
+# =============================================================================

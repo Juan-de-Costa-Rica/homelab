@@ -1,0 +1,107 @@
+# =============================================================================
+# CALIBRE-WEB - EBOOK LIBRARY MANAGEMENT
+# =============================================================================
+# Web-based ebook library with built-in reader
+# Compatible with Calibre desktop application
+# Provides OPDS feeds for ebook readers
+# Integrated with homelab shared volume architecture
+#
+# DATABASE INITIALIZATION: Uses init container pattern to create metadata.db
+# =============================================================================
+
+services:
+
+  # ==========================================================================
+  # Calibre-Web Main Application
+  # ==========================================================================
+  # Waits for database initialization before starting
+  calibre:
+    image: lscr.io/linuxserver/calibre-web:latest
+    container_name: calibre
+    restart: unless-stopped
+    
+    # # Wait for database initialization to complete
+    # depends_on:
+    #   calibre-db-init:
+    #     condition: service_completed_successfully
+    
+    ports:
+      - "8083:8083"
+    
+    volumes:
+      # App configuration and database
+      - homelab_services_calibre_config:/config
+      
+      # SHARED BOOKS VOLUME - The magic happens here!
+      # This volume is shared with Nextcloud and Audiobookshelf
+      # Database is now guaranteed to exist thanks to init container
+      - homelab_shared_ebooks:/books
+    
+    environment:
+      # LinuxServer.io container settings
+      - PUID=1000
+      - PGID=1000
+      - TZ=${TZ:-UTC}
+      
+      # Calibre-Web specific settings
+      - DOCKER_MODS=linuxserver/mods:universal-calibre
+      # - OAUTHLIB_RELAX_TOKEN_SCOPE=1
+    
+    # command: >
+    #   bash -c "
+    #     # Start LinuxServer init in background
+    #     /init &
+        
+    #     # Wait for init to complete 
+    #     wait
+        
+    #     # Now calibredb should be available - create DB if missing
+    #     if [ ! -f /books/metadata.db ]; then
+    #       echo 'Creating Calibre database...'
+    #       cd /app/calibre/bin && ./calibredb restore_database --really-do-it --with-library /books
+    #       chmod 666 /books/metadata.db
+    #       chown 1000:1000 /books/metadata.db
+    #     fi
+        
+    #     # Start Calibre-Web normally
+    #     exec python3 /app/calibre-web/cps.py
+    #   "
+
+    networks:
+      - homelab_network
+    
+    labels:
+      # Enable Tailscale access via TSDProxy
+      tsdproxy.enable: "true"
+      tsdproxy.name: "calibre"
+      tsdproxy.container_port: "8083"
+      # This creates: https://calibre-web.your-tailnet.ts.net
+
+    # Health check for Calibre-Web
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8083"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 120s  # Calibre-Web takes time to initialize database
+
+# =============================================================================
+# CALIBRE-WEB VOLUMES
+# =============================================================================
+
+volumes:
+  # Calibre-Web configuration and user data
+  homelab_services_calibre_config:
+    name: homelab_services_calibre_config
+    # Contains: User accounts, custom columns, reading lists, app settings
+
+# =============================================================================
+# SHARED VOLUME INTEGRATION
+# =============================================================================
+# The homelab_shared_books volume is defined in services.docker-compose.yaml
+# This service just mounts it - the volume is shared between:
+# - Nextcloud: /var/www/html/data/__media__/books/
+# - Calibre-Web: /books/
+# - Audiobookshelf: /books/
+#
+# Result: Upload ebook anywhere → readable in any service
