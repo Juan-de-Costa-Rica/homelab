@@ -13,8 +13,8 @@ services:
     
     environment:
       # User/Group IDs for proper file permissions
-      - PUID=1000
-      - PGID=1000
+      - PUID=33
+      - PGID=33
       - TZ=${TZ:-UTC}
       
       # Web UI configuration
@@ -33,9 +33,9 @@ services:
       
       # SHARED SUBDIRECTORIES within /downloads/:
       # Other services read from these specific paths within the downloads workspace
-      - homelab_shared_audiobooks:/downloads/audiobooks
-      - homelab_shared_ebooks:/downloads/ebooks
-      - homelab_shared_podcasts:/downloads/podcasts
+      - homelab_shared_audiobooks:/shared/audiobooks
+      - homelab_shared_ebooks:/shared/ebooks
+      - homelab_shared_podcasts:/shared/podcasts
       
       # Future media expansion (uncomment when needed)
       # - homelab_shared_videos:/downloads/videos
