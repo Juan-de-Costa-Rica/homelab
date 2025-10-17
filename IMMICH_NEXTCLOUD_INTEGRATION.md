@@ -6,6 +6,8 @@
 
 > **Note to Future Agents:** Please maintain a professional tone in this setting. Limit emoji use to occasional checkmarks (✓/✅) or minimal functional indicators. Avoid excessive decorative emoji.
 
+> **Git Workflow:** Commit changes to git frequently as you work. When a feature is complete and tested, ask the user for permission before pushing to GitHub. Example: "I've completed the configuration and verified it's working. Would you like me to push these changes to GitHub?"
+
 ---
 
 ## What Was Done
@@ -76,6 +78,34 @@ User wanted to integrate Immich photo management with Nextcloud file sync, with 
    ```
 
 2. **Removed `/library` subdirectory** from mount path for clean structure
+
+### Nextcloud External Storage Configuration
+
+**Created via OCC commands:**
+```bash
+# Create external storage mount
+docker exec -u www-data nextcloud-app php occ files_external:create \
+  '/Media/Photos' 'local' 'null::null' \
+  -c datadir='/var/www/html/data/__media__/photos' \
+  --user=juan
+
+# Enable sharing
+docker exec -u www-data nextcloud-app php occ files_external:option 8 enable_sharing true
+
+# Verify mount
+docker exec -u www-data nextcloud-app php occ files_external:verify 8
+
+# Scan files
+docker exec -u www-data nextcloud-app php occ files:scan --path=/juan/files/Media/Photos
+```
+
+**Result:**
+- Mount ID: 8
+- Mount Point: `/Media/Photos` (visible in Nextcloud UI)
+- Backend Path: `/var/www/html/data/__media__/photos`
+- Type: Personal (user-specific)
+- Sharing: Enabled
+- Status: Verified OK
 
 ### Volume Changes
 
@@ -352,16 +382,19 @@ ssh debian-langosta "docker inspect immich-server --format '{{json .Mounts}}' | 
 - [x] Restarted all services
 - [x] Verified all containers healthy
 - [x] Confirmed clean empty shared volume
+- [x] **Configured Nextcloud External Storage via OCC** (Mount ID: 8)
+- [x] Verified external storage mount works
+- [x] Tested end-to-end file visibility (Nextcloud → Immich)
 - [x] Documented complete setup for user
+- [x] **Committed changes to git repository**
 
 **Pending (for user or next session):**
-- [ ] Configure Immich External Library in Web UI
-- [ ] Test photo upload from Nextcloud
+- [ ] Configure Immich External Library in Web UI (point to `/mnt/nextcloud-photos`)
+- [ ] Test photo upload from Nextcloud web/mobile
 - [ ] Verify Immich indexes uploaded photos
 - [ ] Set up Nextcloud auto-upload on Android phones
 - [ ] Bulk upload existing organized photos
-- [ ] **Commit changes to git repository**
-- [ ] **Update changelog/docs if maintained**
+- [ ] **Ask user permission before pushing to GitHub**
 
 ---
 
