@@ -169,6 +169,7 @@ services:
       
       # General media shared with media servers
       - homelab_shared_media:/var/www/html/data/__media__/files
+      - homelab_shared_photos:/var/www/html/data/__media__/photos
     
     environment:
       # DATABASE CONNECTION using Docker service names
@@ -265,12 +266,13 @@ services:
       - homelab_shared_podcasts:/var/www/html/data/__media__/podcasts
       - homelab_shared_ebooks:/var/www/html/data/__media__/books
       - homelab_shared_media:/var/www/html/data/__media__/files
+      - homelab_shared_photos:/var/www/html/data/__media__/photos
     
     networks:
       - homelab_network
 
     healthcheck:
-      test: ["CMD", "pgrep", "crond"]
+      test: ["CMD", "sh", "-c", "ps aux | grep -v grep | grep -q cron"]
       interval: 60s
       timeout: 10s
       retries: 3
