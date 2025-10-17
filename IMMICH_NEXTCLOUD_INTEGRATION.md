@@ -398,4 +398,157 @@ ssh debian-langosta "docker inspect immich-server --format '{{json .Mounts}}' | 
 
 ---
 
+## Immich Folder Album Creator (Added 2025-10-17)
+
+### Overview
+Automatically creates Immich albums based on your Nextcloud folder structure. This solves the problem of maintaining your organized album structure in Immich without manual album creation.
+
+### Configuration Added
+
+Added new service to `~/homelab/services/immich.docker-compose.yaml`:
+
+```yaml
+immich-folder-album-creator:
+  image: salvoxia/immich-folder-album-creator:latest
+  container_name: immich-folder-album-creator
+  restart: unless-stopped
+
+  depends_on:
+    immich-server:
+      condition: service_healthy
+
+  volumes:
+    # Mount shared photos at same path as immich-server sees it
+    - homelab_shared_photos:/mnt/nextcloud-photos:ro
+
+  environment:
+    API_URL: http://immich-server:2283/api
+    API_KEY: ${IMMICH_API_KEY}
+    ROOT_PATH: /mnt/nextcloud-photos
+    ALBUM_LEVELS: -1
+    ALBUM_LEVEL_SEPARATOR: " - "
+    CRON_EXPRESSION: "0 2 * * *"
+    TZ: ${TZ}
+    MODE: CREATE
+    UNATTENDED: 1
+```
+
+### Key Configuration Details
+
+**ROOT_PATH:** MUST match the path as stored in Immich's database (`originalPath` field). In our setup, this is `/mnt/nextcloud-photos` - not `/external_libs/photos` or any other path. The script filters assets by this path prefix.
+
+**ALBUM_LEVELS: -1:** Creates albums for ALL folder levels (unlimited depth). This handles:
+- Top-level folders: "2024 Oaxaca", "Random CR", etc.
+- Nested folders: "fb bar1 albums/cumple jon", "fb jon albums/Beach Trip 2019"
+- Each folder becomes its own album (no parent path prefix in album name)
+
+**ALBUM_LEVEL_SEPARATOR:** When parent paths are included in names, this separator is used (e.g., "Parent - Child"). With `ALBUM_LEVELS: -1`, nested folders get clean names without prefixes.
+
+**CRON_EXPRESSION: "0 2 * * *":** Runs daily at 2am to sync new photos/folders automatically.
+
+**UNATTENDED: 1:** Runs without interactive prompts (required for automated/cron execution).
+
+### How It Works
+
+1. Queries Immich API for all assets in external library
+2. Filters assets to those with `originalPath` starting with ROOT_PATH
+3. Extracts folder names from paths
+4. Creates/updates albums to match folder structure
+5. Adds photos to corresponding albums
+
+### Initial Run Results
+
+**Date:** 2025-10-17
+**Assets Found:** 9,276 photos
+**Albums Created:** 83 albums
+
+Sample albums created:
+- 2020 Ecuador Covid
+- 2024 Oaxaca
+- fb bar1 albums (parent folder with direct photos)
+- cumple jon (nested inside fb bar1 albums)
+- anexion guana (nested inside fb bar1 albums)
+- Random CR
+- Greece Serbia May 2022
+
+### Manual Execution
+
+To manually trigger album sync (useful after bulk photo uploads):
+
+```bash
+# Run album creator manually
+ssh debian-langosta "docker exec immich-folder-album-creator /script/immich_auto_album.sh"
+
+# Check logs
+ssh debian-langosta "docker logs immich-folder-album-creator --tail 50"
+```
+
+### Workflow Integration
+
+**When you add new photos to Nextcloud:**
+1. Upload photos to organized folders in Nextcloud (via web/mobile/desktop client)
+2. Nextcloud syncs to server (`homelab_shared_photos` volume)
+3. Immich External Library scanner indexes photos (automatic or manual trigger)
+4. Album Creator runs at 2am daily to create/update albums
+5. Photos appear in Immich organized by folder-based albums
+
+**For immediate album sync:**
+```bash
+ssh debian-langosta "docker exec immich-folder-album-creator /script/immich_auto_album.sh"
+```
+
+### Important Notes
+
+**Album Names:** With `ALBUM_LEVELS: -1`, nested folders get their own albums without parent prefixes. If you have duplicate folder names at different levels (e.g., "2023/Vacation" and "2024/Vacation"), they will conflict and use the same album. Your current structure doesn't have this issue.
+
+**Album Modifications:** Albums created by this script are standard Immich albums. You can:
+- Add/remove photos manually in Immich
+- Rename albums (changes will be overwritten on next sync)
+- Delete albums (will be recreated on next sync if folder still exists)
+- Set album covers, descriptions, etc.
+
+**Folder Changes:** If you rename/move folders in Nextcloud:
+- Old album will remain in Immich (not auto-deleted)
+- New album will be created for new folder name
+- You may want to manually clean up old albums
+
+### Troubleshooting
+
+**Albums not being created:**
+1. Check ROOT_PATH matches Immich database paths:
+   ```bash
+   ssh debian-langosta "docker exec immich-postgres psql -U immich -d immich -c \"SELECT \\\"originalPath\\\" FROM asset LIMIT 5;\""
+   ```
+   Paths should start with `/mnt/nextcloud-photos`
+
+2. Verify mount is accessible:
+   ```bash
+   ssh debian-langosta "docker exec immich-folder-album-creator ls -la /mnt/nextcloud-photos/"
+   ```
+
+3. Check API key is valid:
+   ```bash
+   ssh debian-langosta "docker exec immich-folder-album-creator env | grep API_KEY"
+   ```
+
+**Run with debug output:**
+```bash
+ssh debian-langosta "docker exec immich-folder-album-creator /script/immich_auto_album.sh -d"
+```
+
+### Related Files
+
+**Modified:**
+- `~/homelab/services/immich.docker-compose.yaml` (added album creator service)
+
+**Uses:**
+- `~/homelab/.env` (contains `IMMICH_API_KEY`)
+
+**References:**
+- GitHub: https://github.com/Salvoxia/immich-folder-album-creator
+- Docker Hub: https://hub.docker.com/r/salvoxia/immich-folder-album-creator
+- Listed on Immich's official Community Projects page
+
+---
+
 **End of Handoff Document**

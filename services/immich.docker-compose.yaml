@@ -110,6 +110,55 @@ services:
       retries: 3
       start_period: 60s
 
+  # ==========================================================================
+  # Immich Folder Album Creator
+  # ==========================================================================
+  # Community tool that automatically creates albums based on folder structure
+  # Scans external library and creates/updates albums to match directory organization
+  immich-folder-album-creator:
+    image: salvoxia/immich-folder-album-creator:latest
+    container_name: immich-folder-album-creator
+    restart: unless-stopped
+
+    depends_on:
+      immich-server:
+        condition: service_healthy
+
+    volumes:
+      # Mount shared photos at same path as immich-server sees it
+      - homelab_shared_photos:/mnt/nextcloud-photos:ro
+
+    environment:
+      # Immich API connection
+      API_URL: http://immich-server:2283/api
+      API_KEY: ${IMMICH_API_KEY}
+
+      # Root path to scan for folder-based albums
+      # MUST match the path in Immich's database (originalPath)
+      ROOT_PATH: /mnt/nextcloud-photos
+
+      # Create albums for all nested folder levels
+      # -1 = unlimited depth (handles Album1, Album2, Albums-From-Facebook/Beach Trip, etc.)
+      ALBUM_LEVELS: -1
+
+      # Separator for nested album names
+      ALBUM_LEVEL_SEPARATOR: " - "
+
+      # Run daily at 2am to sync new photos/folders
+      CRON_EXPRESSION: "0 2 * * *"
+
+      # Timezone for cron scheduling
+      TZ: ${TZ}
+
+      # Mode: CREATE = create and update albums
+      MODE: CREATE
+
+      # Run unattended (no interactive prompts)
+      UNATTENDED: 1
+
+    networks:
+      - homelab_network
+
 volumes:
   homelab_services_immich_data:
     name: homelab_services_immich_data
