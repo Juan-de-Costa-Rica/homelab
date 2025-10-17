@@ -507,10 +507,11 @@ ssh debian-langosta "docker exec immich-folder-album-creator /script/immich_auto
 - Delete albums (will be recreated on next sync if folder still exists)
 - Set album covers, descriptions, etc.
 
-**Folder Changes:** If you rename/move folders in Nextcloud:
-- Old album will remain in Immich (not auto-deleted)
-- New album will be created for new folder name
-- You may want to manually clean up old albums
+**Folder Changes:**
+- **Moving photos between folders:** Works automatically - photos removed from old album, added to new album
+- **Renaming folders:** Old album remains (empty), new album created - manual cleanup needed
+- **Deleting folders:** Empty album remains in Immich - manual cleanup needed
+- After major reorganizations, trigger manual sync then clean up empty/orphaned albums in Immich UI
 
 ### Troubleshooting
 
